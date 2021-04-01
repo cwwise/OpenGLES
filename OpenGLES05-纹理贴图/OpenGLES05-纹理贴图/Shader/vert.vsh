@@ -1,13 +1,10 @@
 attribute vec3 position;
-attribute vec3 color;
+attribute vec2 texcoord;
 
-varying vec3 outColor;
-
-uniform float pointSize;
+varying vec2 vTexcoord;
 
 void main()
 {
     gl_Position = vec4(position, 1.0);
-    gl_PointSize = pointSize;
-    outColor = color;
+    vTexcoord = texcoord;
 }

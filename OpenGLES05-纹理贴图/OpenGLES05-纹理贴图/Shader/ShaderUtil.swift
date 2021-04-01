@@ -82,7 +82,8 @@ class ShaderUtil: NSObject {
     }
 
     //加载一张纹理图片
-    class func loadTextureImage(imageName: String, map: Bool = false) -> GLuint? {
+    class func loadTextureImage(imageName: String,
+                                map: Bool = false) -> GLuint? {
         
         guard let image = UIImage(named: imageName)?.cgImage else {
             return nil
@@ -107,7 +108,6 @@ class ShaderUtil: NSObject {
         //绑定纹理
         var textureID: GLuint = 0
         glGenTextures(1, &textureID)
-        glActiveTexture(textureID)
         glBindTexture(GLenum(GL_TEXTURE_2D), textureID)
 
         //设置纹理参数

@@ -19,6 +19,7 @@ class OpenGLESView: UIView {
     var frameBuffer: GLuint = 0
     var colorRenderBuffer: GLuint = 0
     var program: GLuint = 0
+    var texture: GLuint = 0
 
     override class var layerClass: AnyClass {
         return CAEAGLLayer.self
@@ -30,7 +31,7 @@ class OpenGLESView: UIView {
         setupLayer()
         setupContext()
         setupGLProgram()
-
+        setupVBO()
         setupTexure()
     }
 
@@ -87,21 +88,60 @@ class OpenGLESView: UIView {
     }
 
     func setupVBO() {
-        
+
+        let vertices: [GLfloat] = [
+            0.5, 0.5, 0.0, 1.0, 1.0,
+            0.5, -0.5, 0.0, 1.0, 0.0,
+            -0.5, -0.5, 0.0, 0.0, 0.0,
+            -0.5, -0.5, 0.0, 0.0, 0.0,
+            -0.5, 0.5, 0.0, 0.0, 1.0,
+            0.5, 0.5, 0.0, 1.0, 1.0,
+        ]
+
+        var vbo: GLuint = 0
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GLenum(GL_ARRAY_BUFFER), vbo);
+        glBufferData(GLenum(GL_ARRAY_BUFFER),
+                     GLsizeiptr(MemoryLayout<GLfloat>.size * vertices.count),
+                     vertices,
+                     GLenum(GL_STATIC_DRAW))
+
+        let position = GLuint(glGetAttribLocation(program, "position"))
+        glEnableVertexAttribArray(position)
+        glVertexAttribPointer(position,
+                              3,
+                              GLenum(GL_FLOAT),
+                              GLboolean(GL_FALSE),
+                              GLsizei(MemoryLayout<GLfloat>.size*5),
+                              nil)
+
+        let texcoord = GLuint(glGetAttribLocation(program, "texcoord"))
+        let texcoords = UnsafePointer<GLfloat>(bitPattern: MemoryLayout<GLfloat>.stride * 3)
+        glEnableVertexAttribArray(texcoord)
+        glVertexAttribPointer(texcoord,
+                              2,
+                              GLenum(GL_FLOAT),
+                              GLboolean(GL_FALSE),
+                              GLsizei(MemoryLayout<GLfloat>.size*5),
+                              texcoords)
+
     }
 
     func setupTexure() {
-        ShaderUtil.loadTextureImage(imageName: "local_2.jpeg")
+        texture = ShaderUtil.loadTextureImage(imageName: "local_2.jpeg") ?? 0
     }
 
     func render() {
         glClearColor(1.0, 1.0, 1.0, 1.0);
         glClear(GLbitfield(GL_COLOR_BUFFER_BIT));
-
         glViewport(0, 0, GLsizei(self.frame.size.width), GLsizei(self.frame.size.height));
 
+        glActiveTexture(GLenum(GL_TEXTURE0))
+        glBindTexture(GLenum(GL_TEXTURE_2D), texture)
         glUniform1i(glGetUniformLocation(program, "image"), 0);
-        glDrawArrays(GLenum(GL_TRIANGLES), 0, 10)
+
+        glDrawArrays(GLenum(GL_TRIANGLES), 0, 6)
+
         //将指定 renderbuffer 呈现在屏幕上，在这里我们指定的是前面已经绑定为当前 renderbuffer 的那个，在 renderbuffer 可以被呈现之前，必须调用renderbufferStorage:fromDrawable: 为之分配存储空间。
         context.presentRenderbuffer(Int(GL_RENDERBUFFER))
     }
