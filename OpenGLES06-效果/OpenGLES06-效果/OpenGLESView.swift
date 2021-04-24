@@ -19,10 +19,7 @@ class OpenGLESView: UIView {
     var frameBuffer: GLuint = 0
     var colorRenderBuffer: GLuint = 0
     var program: GLuint = 0
-
-    var vao: GLuint = 0
-    var vertext: [Vertex] = []
-    var vertCount: Int = 100
+    var texture: GLuint = 0
 
     override class var layerClass: AnyClass {
         return CAEAGLLayer.self
@@ -33,9 +30,6 @@ class OpenGLESView: UIView {
 
         setupLayer()
         setupContext()
-        setupGLProgram()
-        setupVertexData()
-        setupVAO()
     }
 
     override func layoutSubviews() {
@@ -43,9 +37,7 @@ class OpenGLESView: UIView {
 
         self.destoryRenderAndFrameBuffer()
         self.setupFrameAndRenderBuffer()
-        self.render()
     }
-
 
     func setupLayer() {
         self.eaglLayer.isOpaque = true
@@ -53,15 +45,15 @@ class OpenGLESView: UIView {
     }
 
     func setupContext() {
-        context = EAGLContext(api: .openGLES3)
+        context = EAGLContext(api: .openGLES2)
         if !EAGLContext.setCurrent(context) {
             print("Failed to set current OpenGL context")
         }
     }
 
-    func setupGLProgram() {
-        guard let program = ShaderUtil.loadShader(vertexShaderName: "vert.vsh",
-                                                  fragmentShaderName: "frag.fsh") else {
+    func setupGLProgram(name: String) {
+        guard let program = ShaderUtil.loadShader(vertexShaderName: "\(name).vsh",
+                                                  fragmentShaderName: "\(name).fsh") else {
             return
         }
         self.program = program
@@ -90,69 +82,48 @@ class OpenGLESView: UIView {
                                   colorRenderBuffer)
     }
 
-    struct Vertex {
-        var x: GLfloat
-        var y: GLfloat
-        var z: GLfloat
-        var r: GLfloat
-        var g: GLfloat
-        var b: GLfloat
-    }
+    func setupVBO() {
 
-    func setupVAO() {
-
-        glGenVertexArrays(1, &vao)
-        glBindVertexArray(vao)
+        let vertices: [GLfloat] = [
+            -1, 1,
+            -1, -1,
+            1, 1,
+            1, -1,
+        ]
 
         var vbo: GLuint = 0
         glGenBuffers(1, &vbo);
         glBindBuffer(GLenum(GL_ARRAY_BUFFER), vbo);
         glBufferData(GLenum(GL_ARRAY_BUFFER),
-                     GLsizeiptr(MemoryLayout<Vertex>.stride * vertCount),
-                     vertext,
+                     GLsizeiptr(MemoryLayout<GLfloat>.size * vertices.count),
+                     vertices,
                      GLenum(GL_STATIC_DRAW))
-
-        glEnableVertexAttribArray(0)
-        glEnableVertexAttribArray(1)
-
-        glVertexAttribPointer(0, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), GLsizei(MemoryLayout<Vertex>.stride), nil)
-        let colors = UnsafePointer<GLfloat>(bitPattern: MemoryLayout<GLfloat>.stride * 3)
-        glVertexAttribPointer(1, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), GLsizei(MemoryLayout<Vertex>.stride), colors)
-
-        glBindVertexArray(0)
-
     }
 
-    func setupVertexData() {
-
-        let p1 = CGPoint(x: -0.8, y: 0)
-        let p2 = CGPoint(x: 0.8, y: 0.2)
-        let control = CGPoint(x: 0, y: -0.9)
-        let deltaT: CGFloat = 0.01;
-
-        vertCount = Int(1.0/deltaT);
-
-        // t的范围[0,1]
-        for i in 0..<vertCount {
-            let t = CGFloat(i) * deltaT
-            // 二次方计算公式
-            let cx = (1-t)*(1-t)*p1.x + 2*t*(1-t)*control.x + t*t*p2.x
-            let cy = (1-t)*(1-t)*p1.y + 2*t*(1-t)*control.y + t*t*p2.y
-            vertext.append(Vertex(x: GLfloat(cx), y: GLfloat(cy), z: 0, r: 1.0, g: 0.0, b: 0.0))
-        }
-
+    func setupTexure() {
+        texture = ShaderUtil.loadTextureImage(imageName: "local.jpeg") ?? 0
+        glUniform1i(glGetUniformLocation(program, "image"), 0);
     }
 
     func render() {
-        glClearColor(1.0, 1.0, 0.0, 1.0);
+                
+        glClearColor(1.0, 1.0, 1.0, 1.0);
         glClear(GLbitfield(GL_COLOR_BUFFER_BIT));
-        glLineWidth(2.0)
-
         glViewport(0, 0, GLsizei(self.frame.size.width), GLsizei(self.frame.size.height));
 
-        glBindVertexArray(vao)
+        let position = GLuint(glGetAttribLocation(program, "position"))
+        glEnableVertexAttribArray(position)
+        glVertexAttribPointer(position,
+                              2,
+                              GLenum(GL_FLOAT),
+                              GLboolean(GL_FALSE),
+                              GLsizei(MemoryLayout<GLfloat>.size*2),
+                              nil)
+        
+        glActiveTexture(GLenum(GL_TEXTURE0))
+        glBindTexture(GLenum(GL_TEXTURE_2D), texture)
 
-        glDrawArrays(GLenum(GL_LINE_STRIP), 0, GLsizei(vertCount))
+        glDrawArrays(GLenum(GL_TRIANGLE_STRIP), 0, 4)
 
         //将指定 renderbuffer 呈现在屏幕上，在这里我们指定的是前面已经绑定为当前 renderbuffer 的那个，在 renderbuffer 可以被呈现之前，必须调用renderbufferStorage:fromDrawable: 为之分配存储空间。
         context.presentRenderbuffer(Int(GL_RENDERBUFFER))
