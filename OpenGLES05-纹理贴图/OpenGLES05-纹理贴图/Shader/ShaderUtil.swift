@@ -96,7 +96,7 @@ class ShaderUtil: NSObject {
         let spriteData: UnsafeMutablePointer = UnsafeMutablePointer<GLubyte>.allocate(capacity: MemoryLayout<GLubyte>.size * width * height * 4)
 
         UIGraphicsBeginImageContext(CGSize(width: width, height: height))
-        //获取context
+        // 获取context
         let spriteContext = CGContext(data: spriteData, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: image.colorSpace!, bitmapInfo: image.bitmapInfo.rawValue)
         //2.图片反转2
         spriteContext?.translateBy(x: 0, y: CGFloat(height))//向下平移图片的高度
